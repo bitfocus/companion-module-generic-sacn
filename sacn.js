@@ -37,6 +37,8 @@ instance.prototype.init = function() {
 			self.client.send(self.packet);
 		}
 	}, 1000);
+
+	self.init_feedbacks();
 };
 
 instance.prototype.terminate = function() {
@@ -219,7 +221,48 @@ instance.prototype.action = function(action) {
 			break;
 
 	}
+	self.checkFeedbacks('status');
 
+}
+
+instance.prototype.init_feedbacks = function() {
+	var self = this;
+	const feedbacks = {}
+	
+	feedbacks['status'] = {
+		label: 'Status of the sACN stream',
+		description: 'Set the button background based on the status of the sACN stream.',
+		options: [
+			{
+				type: 'colorpicker',
+				label: 'Background color (Terminated)',
+				id: 'bg_terminated',
+				default: this.rgb(0, 0, 0)
+			}, 
+			{
+				type: 'colorpicker',
+				label: 'Background color (Active)',
+				id: 'bg_active',
+				default: this.rgb(0, 222, 0)
+			}
+		]
+	}
+	self.setFeedbackDefinitions(feedbacks);
+};
+
+instance.prototype.feedback = function(feedback) {
+	var self = this;
+	var opts = feedback.options;
+	self.log("warn", feedback.type);
+	if (feedback.type == 'status') {
+		if (self.packet !== undefined && !self.packet.getOption(self.packet.Options.TERMINATED)) {
+			return { bgcolor: opts.bg_active }
+		}
+		else {
+			return { bgcolor: opts.bg_terminated }
+		}
+	}
+	return {}
 };
 
 instance_skel.extendedBy(instance);
