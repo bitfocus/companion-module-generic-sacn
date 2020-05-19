@@ -79,6 +79,7 @@ instance.prototype.init_sacn= function() {
 		self.packet.setUUID(self.config.uuid || self.genUUID());
 		self.packet.setUniverse(self.config.universe || 0x01);
 		self.packet.setPriority(self.config.priority);
+		self.packet.setOption(self.packet.Options.TERMINATED, true);
 
 		for(var i=0; i<self.data.length; i++) {
 			self.data[i] = 0x00;
@@ -103,12 +104,14 @@ instance.prototype.config_fields = function () {
 		{
 			type: 'textinput',
 			id: 'name',
-			label: 'Source name',
-			default: 'Companion ' + self.id
+			width: 12,
+			label: 'Source Name',
+			default: 'Companion (' + self.id + ')'
 		},
 		{
 			type: 'textinput',
 			id: 'uuid',
+			width: 12,
 			label: 'Source UUID',
 			default: self.genUUID()
 		},
@@ -116,25 +119,26 @@ instance.prototype.config_fields = function () {
 			type: 'textinput',
 			id: 'host',
 			label: 'Receiver IP',
-			width: 6,
+			width: 5,
 			regex: self.REGEX_IP
+		},
+		{
+			type: 'number',
+			id: 'universe',
+			label: 'Universe (1-63999)',
+			width: 4,
+			min: 1,
+			max: 63999,
+			default: 1
 		},
 		{
 			type: 'number',
 			id: 'priority',
 			label: 'Priority (1-201)',
+			width: 3,
 			min: 1,
 			max: 201,
 			default: 100
-		},
-		{
-			type: 'number',
-			id: 'universe',
-			label: 'Universe number (1-63999)',
-			width: 6,
-			min: 1,
-			max: 63999,
-			default: 1
 		}
 	];
 	return fields;
@@ -167,27 +171,29 @@ instance.prototype.actions = function(system) {
 	var self = this;
 	self.system.emit('instance_actions', self.id, {
 
-		'set': {
+		'setValue': {
 			label:'Set value',
 			options: [
 				{
-					 type: 'textinput',
-					 label: 'Channel (Range 1-512)',
-					 id: 'channel',
-					 default: '1',
-					 regex: '/^0*([1-9]|[1-8][0-9]|9[0-9]|[1-4][0-9]{2}|50[0-9]|51[012])$/' // 1-512
+					type: 'number',
+					label: 'Channel (1-512)',
+					id: 'channel',
+					min: 1,
+					max: 512,
+					default: 1
 				},
 				{
-					 type: 'textinput',
-					 label: 'Value (Range 0-255)',
-					 id: 'value',
-					 default: '0',
-					 regex: '/^0*([0-9]|[1-8][0-9]|9[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/' // 0-255
+					type: 'number',
+					label: 'Value (0-255)',
+					id: 'value',
+					min: 0,
+					max: 255,
+					default: 0
 				}
 			]
 		},
-		'close': {
-			label:'Close SACN'
+		'terminate': {
+			label:'Terminate stream'
 		}
 
 	});
@@ -199,14 +205,14 @@ instance.prototype.action = function(action) {
 
 	switch (action.action) {
 
-		case 'set':
+		case 'setValue':
 			if (self.client !== undefined) {
 				self.packet.setOption(self.packet.Options.TERMINATED, false);
 				self.data[action.options.channel-1] = action.options.value;
 				self.client.send(self.packet);
 			}
 			break;
-		case 'close':
+		case 'terminate':
 			if (self.client !== undefined) {
 				self.terminate();
 			}
