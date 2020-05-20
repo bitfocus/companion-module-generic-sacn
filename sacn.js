@@ -48,7 +48,7 @@ instance.prototype.terminate = function() {
 		self.packet.setOption(self.packet.Options.TERMINATED, true);
 		self.client.send(self.packet);
 	}
-	
+	delete self.activeScene;
 };	
 
 instance.prototype.genUUID = function() {
@@ -174,7 +174,7 @@ instance.prototype.actions = function(system) {
 	self.system.emit('instance_actions', self.id, {
 
 		'setValue': {
-			label:'Set value',
+			label:'Set Value',
 			options: [
 				{
 					type: 'number',
@@ -194,8 +194,20 @@ instance.prototype.actions = function(system) {
 				}
 			]
 		},
+		'setScene': {
+			label: 'Set Active Scene',
+			options: [
+				{
+					type: 'number',
+					label: 'Scene Number',
+					id: 'scene',
+					min: 0,
+					max: 1024
+				}
+			]
+		},
 		'terminate': {
-			label:'Terminate stream'
+			label:'Terminate Stream'
 		}
 
 	});
@@ -213,6 +225,9 @@ instance.prototype.action = function(action) {
 				self.data[action.options.channel-1] = action.options.value;
 				self.client.send(self.packet);
 			}
+			break;
+		case 'setScene':
+			self.activeScene = action.options.scene;
 			break;
 		case 'terminate':
 			if (self.client !== undefined) {
@@ -241,9 +256,22 @@ instance.prototype.init_feedbacks = function() {
 			}, 
 			{
 				type: 'colorpicker',
+				label: 'Background color (Scene Active)',
+				id: 'bg_scene',
+				default: this.rgb(0, 222, 0)
+			},
+			{
+				type: 'colorpicker',
 				label: 'Background color (Active)',
 				id: 'bg_active',
-				default: this.rgb(0, 222, 0)
+				default: this.rgb(0, 20, 208)
+			},
+			{
+				type: 'number',
+				label: 'Scene',
+				id: 'scene',
+				min: 0,
+				max: 1024
 			}
 		]
 	}
@@ -253,13 +281,16 @@ instance.prototype.init_feedbacks = function() {
 instance.prototype.feedback = function(feedback) {
 	var self = this;
 	var opts = feedback.options;
-	self.log("warn", feedback.type);
+	
 	if (feedback.type == 'status') {
-		if (self.packet !== undefined && !self.packet.getOption(self.packet.Options.TERMINATED)) {
-			return { bgcolor: opts.bg_active }
+		if (self.packet === undefined || self.packet.getOption(self.packet.Options.TERMINATED)) {
+			return { bgcolor: opts.bg_terminated }
+		}
+		else if (self.activeScene !== undefined && self.activeScene == opts.scene) {
+			return { bgcolor: opts.bg_scene }
 		}
 		else {
-			return { bgcolor: opts.bg_terminated }
+			return { bgcolor: opts.bg_active }
 		}
 	}
 	return {}
