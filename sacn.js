@@ -32,13 +32,23 @@ instance.prototype.init = function() {
 
 	self.init_sacn();
 
-	self.timer = setInterval(function () {
-		if (self.server !== undefined && !self.packet.getOption(self.packet.Options.TERMINATED)) {
-			self.server.send(self.packet);
-		}
-	}, 1000);
-
 	self.init_feedbacks();
+};
+
+instance.prototype.keepAlive = function () {
+	var self = this;
+
+	if (self.server && self.packet) {
+		self.packet.setOption(self.packet.Options.TERMINATED, false);
+		self.server.send(self.packet);
+	}
+	if (self.server && !self.timer) {
+		self.timer = setInterval(function () {
+			if (self.server !== undefined) {
+				self.server.send(self.packet);
+			}
+		}, 1000);
+	}
 };
 
 instance.prototype.terminate = function() {
@@ -49,6 +59,10 @@ instance.prototype.terminate = function() {
 		self.server.send(self.packet);
 	}
 	delete self.activeScene;
+	if (self.timer) {
+		clearInterval(self.timer);
+		delete self.timer;
+	}
 };	
 
 instance.prototype.genUUID = function() {
@@ -156,16 +170,6 @@ instance.prototype.destroy = function() {
 		delete self.packet;
 		delete self.data;
 	}
-
-	if (self.timer) {
-		clearInterval(self.timer);
-		self.timer = undefined;
-	}
-
-	if (self.server !== undefined) {
-		self.terminate();
-	}
-
 };
 
 
@@ -241,20 +245,17 @@ instance.prototype.action = function(action) {
 
 		case 'setValue':
 			if (self.server !== undefined) {
-				self.packet.setOption(self.packet.Options.TERMINATED, false);
 				self.data[action.options.channel-1] = action.options.value;
-				self.server.send(self.packet);
+				self.keepAlive();
 			}
 			break;
 		case 'setValues':
 			if (self.server !== undefined) {
-				self.packet.setOption(self.packet.Options.TERMINATED, false);
 				var values = action.options.values.split(' ');
 				for (i in values) {
-					self.log('info',"data["+(action.options.start - 1 + parseInt(i,10))+"] = "+values[i]);
 					self.data[parseInt(i,10) + (action.options.start - 1)] = values[i];
 				}
-				self.server.send(self.packet);
+				self.keepAlive();
 			}
 			break;
 		case 'setScene':
