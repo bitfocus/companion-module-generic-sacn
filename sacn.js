@@ -49,6 +49,7 @@ instance.prototype.keepAlive = function () {
 			}
 		}, 1000);
 	}
+	self.checkFeedbacks('status');
 };
 
 instance.prototype.terminate = function() {
@@ -63,7 +64,26 @@ instance.prototype.terminate = function() {
 		clearInterval(self.timer);
 		delete self.timer;
 	}
+	self.checkFeedbacks('status');
 };	
+
+instance.prototype.fade = function(steps, delay, offset, targets) {
+	var self = this;
+
+	if ( steps ) {
+		self.server.send(self.packet);
+		for ( i=0; i < targets.length; i++ ) {
+			var delta = targets[i+offset] - self.data[i+offset];
+			self.data[i+offset] += Math.round(delta/steps) & 0xff;
+		}
+		setTimeout(function() {self.fade(--steps, delay, offset, targets);}, delay);
+	} else {
+		for ( i=0; i < targets.length; i++ ) {
+			self.data[i+offset] = targets[i+offset];
+		}
+		self.keepAlive();
+	}
+};
 
 instance.prototype.genUUID = function() {
 	// Crazy 1-liner UUIDv4 based on gist.github.com/jed/982883
@@ -218,6 +238,42 @@ instance.prototype.actions = function(system) {
 				}
 			]
 		},
+		'fadeValues': {
+			label: 'Fade To Values',
+			options: [
+				{
+					type: 'number',
+					label: 'Fade steps',
+					id: 'steps',
+					min: 0,
+					max: 100,
+					default: 30
+				},
+				{
+					type: 'number',
+					label: 'Fade duration (ms)',
+					id: 'duration',
+					min: 30,
+					max: 2000,
+					default: 1000
+				},
+				{
+					type: 'number',
+					label: 'Starting Channel (1-512)',
+					id: 'start',
+					min: 1,
+					max: 512,
+					default: 1
+				},
+				{
+					type: 'textinput',
+					label: 'Values (space-separated list)',
+					id: 'values',
+					regex: '/((^| )([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){1,512}$/',
+					default: '0 1 255'
+				}
+			]
+		},
 		'setScene': {
 			label: 'Set Active Scene',
 			options: [
@@ -258,8 +314,17 @@ instance.prototype.action = function(action) {
 				self.keepAlive();
 			}
 			break;
+		case 'fadeValues':
+			if (self.server !== undefined) {
+				var opts = action.options;
+				var values = opts.values.split(' ');
+
+				self.fade(opts.steps, Math.floor(opts.duration/opts.steps), opts.start, values);
+			}
+			break;
 		case 'setScene':
 			self.activeScene = action.options.scene;
+			self.checkFeedbacks('status');
 			break;
 		case 'terminate':
 			if (self.server !== undefined) {
@@ -268,7 +333,6 @@ instance.prototype.action = function(action) {
 			break;
 
 	}
-	self.checkFeedbacks('status');
 
 }
 
