@@ -1,4 +1,4 @@
-var sacnClient = require('./lib/client.js').client;
+var sacnServer = require('./lib/server.js').server;
 var instance_skel = require('../../instance_skel');
 var log;
 
@@ -33,8 +33,8 @@ instance.prototype.init = function() {
 	self.init_sacn();
 
 	self.timer = setInterval(function () {
-		if (self.client !== undefined && !self.packet.getOption(self.packet.Options.TERMINATED)) {
-			self.client.send(self.packet);
+		if (self.server !== undefined && !self.packet.getOption(self.packet.Options.TERMINATED)) {
+			self.server.send(self.packet);
 		}
 	}, 1000);
 
@@ -44,9 +44,9 @@ instance.prototype.init = function() {
 instance.prototype.terminate = function() {
 	var self = this;
 
-	if(self.client !== undefined) {
+	if(self.server !== undefined) {
 		self.packet.setOption(self.packet.Options.TERMINATED, true);
-		self.client.send(self.packet);
+		self.server.send(self.packet);
 	}
 	delete self.activeScene;
 };	
@@ -65,16 +65,16 @@ instance.prototype.init_sacn= function() {
 
 	self.status(self.STATE_UNKNOWN);
 
-	if(self.client !== undefined) {
+	if(self.server !== undefined) {
 		self.terminate();
-		delete self.client;
+		delete self.server;
 		delete self.packet;
 		delete self.data;
 	}
 
 	if(self.config.host) {
-		self.client = new sacnClient(self.config.host);
-		self.packet = self.client.createPacket(512);
+		self.server = new sacnServer(self.config.host);
+		self.packet = self.server.createPacket(512);
 		self.data = self.packet.getSlots();
 
 		self.packet.setSourceName(self.config.name || "Companion App");
@@ -150,9 +150,9 @@ instance.prototype.config_fields = function () {
 instance.prototype.destroy = function() {
 	var self = this;
 
-	if (self.client !== undefined) {
+	if (self.server !== undefined) {
 		self.terminate();
-		delete self.client;
+		delete self.server;
 		delete self.packet;
 		delete self.data;
 	}
@@ -162,7 +162,7 @@ instance.prototype.destroy = function() {
 		self.timer = undefined;
 	}
 
-	if (self.client !== undefined) {
+	if (self.server !== undefined) {
 		self.terminate();
 	}
 
@@ -220,17 +220,17 @@ instance.prototype.action = function(action) {
 	switch (action.action) {
 
 		case 'setValue':
-			if (self.client !== undefined) {
+			if (self.server !== undefined) {
 				self.packet.setOption(self.packet.Options.TERMINATED, false);
 				self.data[action.options.channel-1] = action.options.value;
-				self.client.send(self.packet);
+				self.server.send(self.packet);
 			}
 			break;
 		case 'setScene':
 			self.activeScene = action.options.scene;
 			break;
 		case 'terminate':
-			if (self.client !== undefined) {
+			if (self.server !== undefined) {
 				self.terminate();
 			}
 			break;
