@@ -194,6 +194,26 @@ instance.prototype.actions = function(system) {
 				}
 			]
 		},
+		'setValues': {
+			label: 'Set Values',
+			options: [
+				{
+					type: 'number',
+					label: 'Starting Channel (1-512)',
+					id: 'start',
+					min: 1,
+					max: 512,
+					default: 1
+				},
+				{
+					type: 'textinput',
+					label: 'Values (space-separated list)',
+					id: 'values',
+					regex: '/((^| )([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){1,512}$/',
+					default: '0 1 255'
+				}
+			]
+		},
 		'setScene': {
 			label: 'Set Active Scene',
 			options: [
@@ -223,6 +243,17 @@ instance.prototype.action = function(action) {
 			if (self.server !== undefined) {
 				self.packet.setOption(self.packet.Options.TERMINATED, false);
 				self.data[action.options.channel-1] = action.options.value;
+				self.server.send(self.packet);
+			}
+			break;
+		case 'setValues':
+			if (self.server !== undefined) {
+				self.packet.setOption(self.packet.Options.TERMINATED, false);
+				var values = action.options.values.split(' ');
+				for (i in values) {
+					self.log('info',"data["+(action.options.start - 1 + parseInt(i,10))+"] = "+values[i]);
+					self.data[parseInt(i,10) + (action.options.start - 1)] = values[i];
+				}
 				self.server.send(self.packet);
 			}
 			break;
