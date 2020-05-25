@@ -254,7 +254,7 @@ instance.prototype.actions = function(system) {
 					label: 'Fade duration (ms)',
 					id: 'duration',
 					min: 30,
-					max: 2000,
+					max: 10000,
 					default: 1000
 				},
 				{
@@ -308,8 +308,8 @@ instance.prototype.action = function(action) {
 		case 'setValues':
 			if (self.server !== undefined) {
 				var values = action.options.values.split(' ');
-				for (i in values) {
-					self.data[parseInt(i,10) + (action.options.start - 1)] = values[i];
+				for (i=0; i < values.length; i++) {
+					self.data[i + (action.options.start - 1)] = values[i];
 				}
 				self.keepAlive();
 			}
@@ -319,7 +319,7 @@ instance.prototype.action = function(action) {
 				var opts = action.options;
 				var values = opts.values.split(' ');
 
-				self.fade(opts.steps, Math.floor(opts.duration/opts.steps), opts.start, values);
+				self.fade(opts.steps, Math.floor(opts.duration/opts.steps), (opts.start - 1), values);
 			}
 			break;
 		case 'setScene':
