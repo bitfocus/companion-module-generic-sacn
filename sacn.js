@@ -65,6 +65,7 @@ instance.prototype.terminate = function() {
 		delete self.timer;
 	}
 	self.checkFeedbacks('status');
+	self.checkFeedbacks('scene');
 };	
 
 instance.prototype.fade = function(steps, delay, offset, targets) {
@@ -324,7 +325,7 @@ instance.prototype.action = function(action) {
 			break;
 		case 'setScene':
 			self.activeScene = action.options.scene;
-			self.checkFeedbacks('status');
+			self.checkFeedbacks('scene');
 			break;
 		case 'terminate':
 			if (self.server !== undefined) {
@@ -341,26 +342,45 @@ instance.prototype.init_feedbacks = function() {
 	const feedbacks = {}
 	
 	feedbacks['status'] = {
-		label: 'Status of the sACN stream',
+		label: 'Stream status',
 		description: 'Set the button background based on the status of the sACN stream.',
 		options: [
 			{
 				type: 'colorpicker',
-				label: 'Background color (Terminated)',
-				id: 'bg_terminated',
+				label: 'Background color',
+				id: 'bg_color',
 				default: this.rgb(0, 0, 0)
-			}, 
-			{
-				type: 'colorpicker',
-				label: 'Background color (Scene Active)',
-				id: 'bg_scene',
-				default: this.rgb(0, 222, 0)
 			},
 			{
 				type: 'colorpicker',
-				label: 'Background color (Active)',
-				id: 'bg_active',
+				label: 'Foreground color',
+				id: 'fg_color',
+				default: this.rgb(255,255,255)
+			},
+			{
+				type: 'dropdown',
+				label: 'Status',
+				id: 'status',
+				default: 1,
+				choices: [ {id: '1', label: 'Active'}, {id: '0', label: 'Terminated'} ]
+			}
+		]
+	}
+	feedbacks['scene'] = {
+		label: 'Active scene',
+		description: 'Set the button colors based on the active scene.',
+		options: [
+			{
+				type: 'colorpicker',
+				label: 'Background color',
+				id: 'bg_color',
 				default: this.rgb(0, 20, 208)
+			},
+			{
+				type: 'colorpicker',
+				label: 'Foreground color',
+				id: 'fg_color',
+				default: this.rgb(255, 255, 255)
 			},
 			{
 				type: 'number',
@@ -378,15 +398,20 @@ instance.prototype.feedback = function(feedback) {
 	var self = this;
 	var opts = feedback.options;
 	
-	if (feedback.type == 'status') {
-		if (self.packet === undefined || self.packet.getOption(self.packet.Options.TERMINATED)) {
-			return { bgcolor: opts.bg_terminated }
+	if (self.packet === undefined) {
+		return {};
+	}
+	else if (feedback.type == 'status') {
+		if (opts.status == 0 && self.packet.getOption(self.packet.Options.TERMINATED)) {
+			return { bgcolor: opts.bg_color, color: opts.fg_color }
 		}
-		else if (self.activeScene !== undefined && self.activeScene == opts.scene) {
-			return { bgcolor: opts.bg_scene }
+		else if (opts.status == 1 && !self.packet.getOption(self.packet.Options.TERMINATED)) {
+			return { bgcolor: opts.bg_color, color: opts.fg_color }
 		}
-		else {
-			return { bgcolor: opts.bg_active }
+	}
+	else if (feedback.type == 'scene') {
+		if (self.activeScene && opts.scene == self.activeScene) {
+			return { bgcolor: opts.bg_color, color: opts.fg_color }
 		}
 	}
 	return {}
