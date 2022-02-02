@@ -3,7 +3,7 @@
 	"legacy": [
 		"sacn"
 	],
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"api_version": "1.0.0",
 	"description": "Streaming ACN (E1.31) module for Companion",
 	"keywords": [
