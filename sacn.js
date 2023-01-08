@@ -74,13 +74,13 @@ instance.prototype.fade = function(steps, delay, offset, targets) {
 	if ( steps ) {
 		self.server.send(self.packet);
 		for ( i=0; i < targets.length; i++ ) {
-			var delta = targets[i+offset] - self.data[i+offset];
+			var delta = targets[i] - self.data[i+offset];
 			self.data[i+offset] += Math.round(delta/steps) & 0xff;
 		}
 		setTimeout(function() {self.fade(--steps, delay, offset, targets);}, delay);
 	} else {
 		for ( i=0; i < targets.length; i++ ) {
-			self.data[i+offset] = targets[i+offset];
+			self.data[i+offset] = targets[i];
 		}
 		self.keepAlive();
 	}
