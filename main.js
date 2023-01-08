@@ -1,20 +1,32 @@
-var sacnServer = require('./lib/server.js').server
-const { InstanceBase } = require('@companion-module/base')
+const sacnServer = require('./lib/server.js').server
+const { InstanceBase, InstanceStatus, runEntrypoint } = require('@companion-module/base')
 const { v4: uuidv4 } = require('uuid')
 const { getActionDefinitions } = require('./actions.js')
 const { getConfigFields } = require('./config.js')
 
 class SAcnInstance extends InstanceBase {
-	async init() {
+	async init(config) {
+		this.config = config
+
 		this.setActionDefinitions(getActionDefinitions(this))
+
+		await this.configUpdated(config)
+	}
+
+	async configUpdated(config) {
+		this.config = config
 
 		this.init_sacn()
 	}
 
-	async updateConfig(config) {
-		this.config = config
+	// When module gets deleted
+	async destroy() {
+		this.terminate()
+	}
 
-		this.init_sacn()
+	// Return config fields for web config
+	getConfigFields() {
+		return getConfigFields(this.id)
 	}
 
 	keepAlive() {
@@ -22,19 +34,16 @@ class SAcnInstance extends InstanceBase {
 			this.packet.setOption(this.packet.Options.TERMINATED, false)
 			this.server.send(this.packet)
 		}
-		if (this.server && !this.timer) {
-			this.timer = setInterval(() => {
-				if (this.server !== undefined) {
-					this.server.send(this.packet)
-				}
-			}, 1000)
-		}
 	}
 	terminate() {
-		if (this.server !== undefined) {
+		if (this.server && this.packet) {
 			this.packet.setOption(this.packet.Options.TERMINATED, true)
 			this.server.send(this.packet)
 		}
+
+		delete this.server
+		delete this.packet
+		delete this.data
 
 		if (this.timer) {
 			clearInterval(this.timer)
@@ -45,7 +54,7 @@ class SAcnInstance extends InstanceBase {
 		if (steps) {
 			this.server.send(this.packet)
 			for (i = 0; i < targets.length; i++) {
-				var delta = targets[i + offset] - this.data[i + offset]
+				let delta = targets[i + offset] - this.data[i + offset]
 				this.data[i + offset] += Math.round(delta / steps) & 0xff
 			}
 			setTimeout(() => {
@@ -60,14 +69,7 @@ class SAcnInstance extends InstanceBase {
 	}
 
 	init_sacn() {
-		this.status(this.STATE_UNKNOWN)
-
-		if (this.server !== undefined) {
-			this.terminate()
-			delete this.server
-			delete this.packet
-			delete this.data
-		}
+		this.terminate()
 
 		if (this.config.host) {
 			this.server = new sacnServer(this.config.host)
@@ -80,28 +82,21 @@ class SAcnInstance extends InstanceBase {
 			this.packet.setPriority(this.config.priority)
 			this.packet.setOption(this.packet.Options.TERMINATED, true)
 
-			for (var i = 0; i < this.data.length; i++) {
+			for (let i = 0; i < this.data.length; i++) {
 				this.data[i] = 0x00
 			}
-		}
 
-		this.status(this.STATE_OK)
-	}
+			this.timer = setInterval(() => {
+				if (this.server && this.packet) {
+					this.server.send(this.packet)
+				}
+			}, 1000)
 
-	// Return config fields for web config
-	config_fields() {
-		return getConfigFields()
-	}
-
-	// When module gets deleted
-	async destroy() {
-		if (this.server !== undefined) {
-			this.terminate()
-			delete this.server
-			delete this.packet
-			delete this.data
+			this.updateStatus(InstanceStatus.Ok)
+		} else {
+			this.updateStatus(InstanceStatus.BadConfig, 'Missing host')
 		}
 	}
 }
 
-exports = module.exports = SAcnInstance
+runEntrypoint(SAcnInstance, [])
