@@ -3,6 +3,8 @@ const { InstanceBase, InstanceStatus, runEntrypoint } = require('@companion-modu
 const { v4: uuidv4 } = require('uuid')
 const { getActionDefinitions } = require('./actions.js')
 const { getConfigFields } = require('./config.js')
+const { Transitions } = require('./transitions.js')
+const { TIMER_SLOW_DEFAULT, TIMER_FAST_DEFAULT } = require('./constants.js')
 
 class SAcnInstance extends InstanceBase {
 	async init(config) {
@@ -35,6 +37,7 @@ class SAcnInstance extends InstanceBase {
 			this.server.send(this.packet)
 		}
 	}
+
 	terminate() {
 		if (this.server && this.packet) {
 			this.packet.setOption(this.packet.Options.TERMINATED, true)
@@ -45,26 +48,9 @@ class SAcnInstance extends InstanceBase {
 		delete this.packet
 		delete this.data
 
-		if (this.timer) {
-			clearInterval(this.timer)
-			delete this.timer
-		}
-	}
-	fade(steps, delay, offset, targets) {
-		if (steps) {
-			this.server.send(this.packet)
-			for (i = 0; i < targets.length; i++) {
-				let delta = targets[i + offset] - this.data[i + offset]
-				this.data[i + offset] += Math.round(delta / steps) & 0xff
-			}
-			setTimeout(() => {
-				this.fade(--steps, delay, offset, targets)
-			}, delay)
-		} else {
-			for (i = 0; i < targets.length; i++) {
-				this.data[i + offset] = targets[i + offset]
-			}
-			this.keepAlive()
+		if (this.slow_send_timer) {
+			clearInterval(this.slow_send_timer)
+			delete this.slow_send_timer
 		}
 	}
 
@@ -86,11 +72,18 @@ class SAcnInstance extends InstanceBase {
 				this.data[i] = 0x00
 			}
 
-			this.timer = setInterval(() => {
-				if (this.server && this.packet) {
-					this.server.send(this.packet)
+			this.transitions = new Transitions(
+				this.data,
+				this.config.timer_fast || TIMER_FAST_DEFAULT,
+				this.keepAlive.bind(this)
+			)
+
+			this.slow_send_timer = setInterval(() => {
+				// Skip the slow poll if a transition is running
+				if (!this.transitions || !this.transitions.isRunning()) {
+					this.keepAlive()
 				}
-			}, 1000)
+			}, this.config.timer_slow || TIMER_SLOW_DEFAULT)
 
 			this.updateStatus(InstanceStatus.Ok)
 		} else {

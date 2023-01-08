@@ -1,5 +1,6 @@
 const { Regex } = require('@companion-module/base')
 const { v4: uuidv4 } = require('uuid')
+const { TIMER_SLOW_DEFAULT, TIMER_FAST_DEFAULT } = require('./constants')
 
 function getConfigFields(id) {
 	return [
@@ -49,6 +50,24 @@ function getConfigFields(id) {
 			min: 1,
 			max: 201,
 			default: 100,
+		},
+		{
+			type: 'number',
+			id: 'timer_slow',
+			label: `Update interval when no fades are running (ms)`,
+			width: 6,
+			default: TIMER_SLOW_DEFAULT,
+			min: 10,
+			step: 1,
+		},
+		{
+			type: 'number',
+			id: 'timer_fast',
+			label: `Update interval for fades (ms)`,
+			width: 6,
+			default: TIMER_FAST_DEFAULT,
+			min: 5,
+			step: 1,
 		},
 	]
 }

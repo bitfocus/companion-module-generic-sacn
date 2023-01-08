@@ -21,10 +21,7 @@ function getActionDefinitions(self) {
 				},
 			],
 			callback: (action) => {
-				if (self.server) {
-					self.data[action.options.channel - 1] = action.options.value
-					self.keepAlive()
-				}
+				self.transitions.run(action.options.channel - 1, Number(action.options.value), 0)
 			},
 		},
 		setValues: {
@@ -49,25 +46,15 @@ function getActionDefinitions(self) {
 			callback: (action) => {
 				if (self.server) {
 					const values = action.options.values.split(' ')
-					for (i = 0; i < values.length; i++) {
-						self.data[i + (action.options.start - 1)] = values[i]
+					for (let i = 0; i < values.length; i++) {
+						self.transitions.run(i + (action.options.start - 1), Number(values[i]), 0)
 					}
-
-					self.keepAlive()
 				}
 			},
 		},
 		fadeValues: {
 			name: 'Fade To Values',
 			options: [
-				{
-					type: 'number',
-					label: 'Fade steps',
-					id: 'steps',
-					min: 0,
-					max: 100,
-					default: 30,
-				},
 				{
 					type: 'number',
 					label: 'Fade duration (ms)',
@@ -94,10 +81,14 @@ function getActionDefinitions(self) {
 			],
 			callback: (action) => {
 				if (self.server) {
-					const opts = action.options
-					const values = opts.values.split(' ')
-
-					self.fade(opts.steps, Math.floor(opts.duration / opts.steps), opts.start - 1, values)
+					const values = action.options.values.split(' ')
+					for (let i = 0; i < values.length; i++) {
+						self.transitions.run(
+							i + (action.options.start - 1),
+							Number(values[i]),
+							Number(action.options.duration) || 0
+						)
+					}
 				}
 			},
 		},
