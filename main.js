@@ -9,8 +9,6 @@ class SAcnInstance extends InstanceBase {
 		this.setActionDefinitions(getActionDefinitions(this))
 
 		this.init_sacn()
-
-		this.init_feedbacks()
 	}
 
 	async updateConfig(config) {
@@ -31,20 +29,17 @@ class SAcnInstance extends InstanceBase {
 				}
 			}, 1000)
 		}
-		this.checkFeedbacks('status')
 	}
 	terminate() {
 		if (this.server !== undefined) {
 			this.packet.setOption(this.packet.Options.TERMINATED, true)
 			this.server.send(this.packet)
 		}
-		delete this.activeScene
+
 		if (this.timer) {
 			clearInterval(this.timer)
 			delete this.timer
 		}
-		this.checkFeedbacks('status')
-		this.checkFeedbacks('scene')
 	}
 	fade(steps, delay, offset, targets) {
 		if (steps) {
@@ -106,83 +101,6 @@ class SAcnInstance extends InstanceBase {
 			delete this.packet
 			delete this.data
 		}
-	}
-
-	init_feedbacks() {
-		const feedbacks = {}
-
-		feedbacks['status'] = {
-			label: 'Stream status',
-			description: 'Set the button background based on the status of the sACN stream.',
-			options: [
-				{
-					type: 'colorpicker',
-					label: 'Background color',
-					id: 'bg_color',
-					default: this.rgb(0, 0, 0),
-				},
-				{
-					type: 'colorpicker',
-					label: 'Foreground color',
-					id: 'fg_color',
-					default: this.rgb(255, 255, 255),
-				},
-				{
-					type: 'dropdown',
-					label: 'Status',
-					id: 'status',
-					default: 1,
-					choices: [
-						{ id: '1', label: 'Active' },
-						{ id: '0', label: 'Terminated' },
-					],
-				},
-			],
-		}
-		feedbacks['scene'] = {
-			label: 'Active scene',
-			description: 'Set the button colors based on the active scene.',
-			options: [
-				{
-					type: 'colorpicker',
-					label: 'Background color',
-					id: 'bg_color',
-					default: this.rgb(0, 20, 208),
-				},
-				{
-					type: 'colorpicker',
-					label: 'Foreground color',
-					id: 'fg_color',
-					default: this.rgb(255, 255, 255),
-				},
-				{
-					type: 'number',
-					label: 'Scene',
-					id: 'scene',
-					min: 0,
-					max: 1024,
-				},
-			],
-		}
-		this.setFeedbackDefinitions(feedbacks)
-	}
-	feedback(feedback) {
-		var opts = feedback.options
-
-		if (this.packet === undefined) {
-			return {}
-		} else if (feedback.type == 'status') {
-			if (opts.status == 0 && this.packet.getOption(this.packet.Options.TERMINATED)) {
-				return { bgcolor: opts.bg_color, color: opts.fg_color }
-			} else if (opts.status == 1 && !this.packet.getOption(this.packet.Options.TERMINATED)) {
-				return { bgcolor: opts.bg_color, color: opts.fg_color }
-			}
-		} else if (feedback.type == 'scene') {
-			if (this.activeScene && opts.scene == this.activeScene) {
-				return { bgcolor: opts.bg_color, color: opts.fg_color }
-			}
-		}
-		return {}
 	}
 }
 

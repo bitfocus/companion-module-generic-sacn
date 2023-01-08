@@ -101,31 +101,6 @@ function getActionDefinitions(self) {
 				}
 			},
 		},
-		setScene: {
-			name: 'Set Active Scene',
-			options: [
-				{
-					type: 'number',
-					label: 'Scene Number',
-					id: 'scene',
-					min: 0,
-					max: 1024,
-				},
-			],
-			callback: (action) => {
-				self.activeScene = action.options.scene
-				self.checkFeedbacks('scene')
-			},
-		},
-		terminate: {
-			name: 'Terminate Stream',
-			options: [],
-			callback: () => {
-				if (self.server) {
-					self.terminate()
-				}
-			},
-		},
 	}
 }
 
