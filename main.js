@@ -1,22 +1,19 @@
 var sacnServer = require('./lib/server.js').server
-var instance_skel = require('../../instance_skel')
+const { InstanceBase } = require('@companion-module/base')
+const { v4: uuidv4 } = require('uuid')
+const { getActionDefinitions } = require('./actions.js')
+const { getConfigFields } = require('./config.js')
 
-class SAcnInstance extends instance_skel {
-	constructor(system, id, config) {
-		super(system, id, config)
-
-		this.actions() // export actions
-	}
-
-	init() {
-		this.status(this.STATE_UNKNOWN)
+class SAcnInstance extends InstanceBase {
+	async init() {
+		this.setActionDefinitions(getActionDefinitions(this))
 
 		this.init_sacn()
 
 		this.init_feedbacks()
 	}
 
-	updateConfig(config) {
+	async updateConfig(config) {
 		this.config = config
 
 		this.init_sacn()
@@ -66,17 +63,7 @@ class SAcnInstance extends instance_skel {
 			this.keepAlive()
 		}
 	}
-	genUUID() {
-		// Crazy 1-liner UUIDv4 based on gist.github.com/jed/982883
-		// Consider just importing the UUID v4 module
-		function id(a) {
-			return a
-				? (a ^ ((Math.random() * 16) >> (a / 4))).toString(16)
-				: ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, id)
-		}
 
-		return id()
-	}
 	init_sacn() {
 		this.status(this.STATE_UNKNOWN)
 
@@ -93,7 +80,7 @@ class SAcnInstance extends instance_skel {
 			this.data = this.packet.getSlots()
 
 			this.packet.setSourceName(this.config.name || 'Companion App')
-			this.packet.setUUID(this.config.uuid || this.genUUID())
+			this.packet.setUUID(this.config.uuid || uuidv4())
 			this.packet.setUniverse(this.config.universe || 0x01)
 			this.packet.setPriority(this.config.priority)
 			this.packet.setOption(this.packet.Options.TERMINATED, true)
@@ -105,61 +92,14 @@ class SAcnInstance extends instance_skel {
 
 		this.status(this.STATE_OK)
 	}
+
 	// Return config fields for web config
 	config_fields() {
-		var fields = [
-			{
-				type: 'text',
-				id: 'info',
-				width: 12,
-				label: 'Information',
-				value:
-					'This module will transmit SACN packets to the ip and universe you specify below. If you need more universes, add multiple SACN instances.',
-			},
-			{
-				type: 'textinput',
-				id: 'name',
-				width: 12,
-				label: 'Source Name',
-				default: 'Companion (' + this.id + ')',
-			},
-			{
-				type: 'textinput',
-				id: 'uuid',
-				width: 12,
-				label: 'Source UUID',
-				default: this.genUUID(),
-			},
-			{
-				type: 'textinput',
-				id: 'host',
-				label: 'Receiver IP',
-				width: 5,
-				regex: this.REGEX_IP,
-			},
-			{
-				type: 'number',
-				id: 'universe',
-				label: 'Universe (1-63999)',
-				width: 4,
-				min: 1,
-				max: 63999,
-				default: 1,
-			},
-			{
-				type: 'number',
-				id: 'priority',
-				label: 'Priority (1-201)',
-				width: 3,
-				min: 1,
-				max: 201,
-				default: 100,
-			},
-		]
-		return fields
+		return getConfigFields()
 	}
+
 	// When module gets deleted
-	destroy() {
+	async destroy() {
 		if (this.server !== undefined) {
 			this.terminate()
 			delete this.server
@@ -167,138 +107,7 @@ class SAcnInstance extends instance_skel {
 			delete this.data
 		}
 	}
-	actions() {
-		this.setActions({
-			setValue: {
-				label: 'Set Value',
-				options: [
-					{
-						type: 'number',
-						label: 'Channel (1-512)',
-						id: 'channel',
-						min: 1,
-						max: 512,
-						default: 1,
-					},
-					{
-						type: 'number',
-						label: 'Value (0-255)',
-						id: 'value',
-						min: 0,
-						max: 255,
-						default: 0,
-					},
-				],
-			},
-			setValues: {
-				label: 'Set Values',
-				options: [
-					{
-						type: 'number',
-						label: 'Starting Channel (1-512)',
-						id: 'start',
-						min: 1,
-						max: 512,
-						default: 1,
-					},
-					{
-						type: 'textinput',
-						label: 'Values (space-separated list)',
-						id: 'values',
-						regex: '/((^| )([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){1,512}$/',
-						default: '0 1 255',
-					},
-				],
-			},
-			fadeValues: {
-				label: 'Fade To Values',
-				options: [
-					{
-						type: 'number',
-						label: 'Fade steps',
-						id: 'steps',
-						min: 0,
-						max: 100,
-						default: 30,
-					},
-					{
-						type: 'number',
-						label: 'Fade duration (ms)',
-						id: 'duration',
-						min: 30,
-						max: 10000,
-						default: 1000,
-					},
-					{
-						type: 'number',
-						label: 'Starting Channel (1-512)',
-						id: 'start',
-						min: 1,
-						max: 512,
-						default: 1,
-					},
-					{
-						type: 'textinput',
-						label: 'Values (space-separated list)',
-						id: 'values',
-						regex: '/((^| )([1-9]?[0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])){1,512}$/',
-						default: '0 1 255',
-					},
-				],
-			},
-			setScene: {
-				label: 'Set Active Scene',
-				options: [
-					{
-						type: 'number',
-						label: 'Scene Number',
-						id: 'scene',
-						min: 0,
-						max: 1024,
-					},
-				],
-			},
-			terminate: {
-				label: 'Terminate Stream',
-			},
-		})
-	}
-	action(action) {
-		switch (action.action) {
-			case 'setValue':
-				if (this.server !== undefined) {
-					this.data[action.options.channel - 1] = action.options.value
-					this.keepAlive()
-				}
-				break
-			case 'setValues':
-				if (this.server !== undefined) {
-					var values = action.options.values.split(' ')
-					for (i = 0; i < values.length; i++) {
-						this.data[i + (action.options.start - 1)] = values[i]
-					}
-					this.keepAlive()
-				}
-				break
-			case 'fadeValues':
-				if (this.server !== undefined) {
-					var opts = action.options
-					var values = opts.values.split(' ')
 
-					this.fade(opts.steps, Math.floor(opts.duration / opts.steps), opts.start - 1, values)
-				}
-				break
-			case 'setScene':
-				this.activeScene = action.options.scene
-				this.checkFeedbacks('scene')
-				break
-			case 'terminate':
-				if (this.server !== undefined) {
-					this.terminate()
-				}
-				break
-		}
-	}
 	init_feedbacks() {
 		const feedbacks = {}
 
