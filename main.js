@@ -5,6 +5,7 @@ const { getActionDefinitions } = require('./actions.js')
 const { getConfigFields } = require('./config.js')
 const { Transitions } = require('./transitions.js')
 const { TIMER_SLOW_DEFAULT, TIMER_FAST_DEFAULT } = require('./constants.js')
+const { UpgradeScripts } = require('./upgrades.js')
 
 class SAcnInstance extends InstanceBase {
 	async init(config) {
@@ -92,4 +93,4 @@ class SAcnInstance extends InstanceBase {
 	}
 }
 
-runEntrypoint(SAcnInstance, [])
+runEntrypoint(SAcnInstance, UpgradeScripts)
