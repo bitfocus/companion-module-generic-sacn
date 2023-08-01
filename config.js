@@ -69,6 +69,14 @@ function getConfigFields(id) {
 			min: 5,
 			step: 1,
 		},
+		{
+			type: 'textinput',
+			id: 'variables',
+			label: `Variables to expose, channel range (e.g. "1-5,34,100-130")`,
+			width: 6,
+			default: '1-512',
+			regex: '/^(([0-9]+(-[0-9]+){0,1}),{0,1}){1,}$/',
+		},
 	]
 }
 

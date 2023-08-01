@@ -3,6 +3,7 @@ const { InstanceBase, InstanceStatus, runEntrypoint } = require('@companion-modu
 const { v4: uuidv4 } = require('uuid')
 const { getActionDefinitions } = require('./actions.js')
 const { getConfigFields } = require('./config.js')
+const { init_variables, update_variables } = require('./variables.js')
 const { Transitions } = require('./transitions.js')
 const { TIMER_SLOW_DEFAULT, TIMER_FAST_DEFAULT } = require('./constants.js')
 const { UpgradeScripts } = require('./upgrades.js')
@@ -36,6 +37,7 @@ class SAcnInstance extends InstanceBase {
 		if (this.server && this.packet) {
 			this.packet.setOption(this.packet.Options.TERMINATED, false)
 			this.server.send(this.packet)
+			update_variables(this)
 		}
 	}
 
@@ -85,6 +87,7 @@ class SAcnInstance extends InstanceBase {
 					this.keepAlive()
 				}
 			}, this.config.timer_slow || TIMER_SLOW_DEFAULT)
+			init_variables(this)
 
 			this.updateStatus(InstanceStatus.Ok)
 		} else {
