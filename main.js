@@ -91,7 +91,7 @@ class SAcnInstance extends InstanceBase {
 
 			this.updateStatus(InstanceStatus.Ok)
 		} else {
-			this.updateStatus(InstanceStatus.BadConfig, 'Missing host')
+			this.updateStatus(InstanceStatus.BadConfig, 'Missing hosts')
 		}
 	}
 }

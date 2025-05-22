@@ -30,6 +30,7 @@ function getConfigFields(id) {
 			type: 'textinput',
 			id: 'host',
 			label: 'Receiver IP',
+			tooltip: 'For Multicast, use 239.255.0.XXX',
 			width: 5,
 			regex: Regex.IP,
 		},
