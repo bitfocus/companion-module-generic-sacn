@@ -60,8 +60,11 @@ class SAcnInstance extends InstanceBase {
 	init_sacn() {
 		this.terminate()
 
-		if (this.config.host && this.config.localAddress) {
-			this.server = new sacnServer(this.config.host, 5568 ,this.config.localAddress)
+		if (this.config.host) {
+			this.server = new sacnServer({
+				target: this.config.host, 
+				localAddress: this.config.localAddress,
+			})
 			this.packet = this.server.createPacket(512)
 			this.data = this.packet.getSlots()
 

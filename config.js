@@ -40,6 +40,7 @@ function getConfigFields(id) {
 			label: 'Bind localAddress IP',
 			width: 5,
 			regex: Regex.IP,
+			default: '',
 		},
 		{
 			type: 'number',
