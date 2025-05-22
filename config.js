@@ -34,6 +34,13 @@ function getConfigFields(id) {
 			regex: Regex.IP,
 		},
 		{
+			type: 'textinput',
+			id: 'localAddress',
+			label: 'Bind localAddress IP',
+			width: 5,
+			regex: Regex.IP,
+		},
+		{
 			type: 'number',
 			id: 'universe',
 			label: 'Universe (1-63999)',
