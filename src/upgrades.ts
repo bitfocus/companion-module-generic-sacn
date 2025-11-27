@@ -11,10 +11,18 @@ export const UpgradeScripts: CompanionStaticUpgradeScript<ModuleConfig>[] = [
 		_context: CompanionUpgradeContext<ModuleConfig>,
 		props: CompanionStaticUpgradeProps<ModuleConfig>,
 	): CompanionStaticUpgradeResult<ModuleConfig> {
-		const result: any = {
+		const result: CompanionStaticUpgradeResult<ModuleConfig> = {
 			updatedConfig: null,
 			updatedActions: [],
 			updatedFeedbacks: [],
+		}
+
+		// Upgrade config: set mode to 'send' if it's missing, 'none', or empty
+		if (props.config) {
+			if (!props.config.mode || props.config.mode === 'none' || props.config.mode === '') {
+				props.config.mode = 'send'
+				result.updatedConfig = props.config
+			}
 		}
 
 		for (const action of props.actions) {
