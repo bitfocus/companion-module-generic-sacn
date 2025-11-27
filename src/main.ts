@@ -160,7 +160,8 @@ export class SACNInstance extends InstanceBase<ModuleConfig> {
 
 		for (let i = 0; i < data.slots.length && i < this.data?.length; i++) {
 			if (this.variable_status?.[i]) {
-				values[`value_chan_${i + 1}`] = data.slots[i]
+				// values[`value_chan_${i + 1}`] = data.slots[i]
+				values[`channel${i + 1}_value`] = data.slots[i]
 				this.data[i] = data.slots[i]
 			}
 		}

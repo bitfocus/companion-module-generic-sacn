@@ -45,7 +45,7 @@ export function GetConfigFields(self: SACNInstance): SomeCompanionConfigField[] 
 		{
 			type: 'dropdown',
 			id: 'localAddress',
-			label: 'Bind to specific IP (optional)',
+			label: 'Interface (optional)',
 			tooltip: 'the IP address of the network interface to bind to. default is $(internal:bind_ip)',
 			width: 6,
 			choices: self.localIPs,

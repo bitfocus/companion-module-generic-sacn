@@ -8,7 +8,7 @@ This module can transmit (send) or receive sACN (E1.31) DMX data. Use one module
 
 - **universe**: sACN universe number to use for send/receive. (Range: 1–63999)
 
-- **localAddress**: the local network interface IP to bind to.
+- **Interface**: the local network interface IP to bind to.
 
 - **mode**: Choose the module mode. `send` Transmit sACN packets. `receive` Listen for sACN packets and expose them as variables/feedback.
 
@@ -22,7 +22,7 @@ This module can transmit (send) or receive sACN (E1.31) DMX data. Use one module
 
 - **host**: (IP) to send to (use for unicast or a custom multicast group).
 
-- **variables**: A channel range string that controls which DMX channels are exposed as Companion variables. Example formats: `1-512`, `1-5,34,100-130`. The module uses this range to create `value_chan_<n>` variables for each selected channel.
+- **variables**: A channel range string that controls which DMX channels are exposed as Companion variables. Example formats: `1-512`, `1-5,34,100-130`. The module uses this range to create `channel<n>_value` variables for each selected channel.
 
 ---
 
@@ -86,15 +86,15 @@ Static/status variables (always available):
 
 Channel variables (dynamic):
 
-- `value_chan_<n>` — Value (0–255) of channel `n` (only created if `variables` setting includes that channel). For example `value_chan_1`, `value_chan_10`.
+- `channel<n>_value` — Value (0–255) of channel `n` (only created if `variables` setting includes that channel). For example `channel1_value`, `channel404_value`.
 
 How to expose channels:
 
-- Set the `Variables to expose` field in the module config to a range string such as `1-512` or `1-5,34,100-130`. The module will parse that and create `value_chan_n` variables for each included channel.
+- Set the `Variables to expose` field in the module config to a range string such as `1-512` or `1-5,34,100-130`. The module will parse that and create `channel<n>_value` variables for each included channel.
 
 Updating variable values:
 
-- The module will keep `value_chan_<n>` updated with the current channel values (used by actions, other modules, or displayed in the Variables view).
+- The module will keep `channel<n>_value` updated with the current channel values (used by actions, other modules, or displayed in the Variables view).
 
 ---
 

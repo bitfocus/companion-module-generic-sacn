@@ -14,7 +14,7 @@ export function UpdatePresets(self: SACNInstance): void {
 				category: `Channel Values`,
 				name: `Channel ${i + 1}`,
 				style: {
-					text: `Ch: ${i + 1}\nValue:\n$(SACN:value_chan_${i + 1})`,
+					text: `Ch: ${i + 1}\nValue:\n$(SACN:channel${i + 1}_value)`,
 					size: '14',
 					color: combineRgb(255, 255, 255),
 					bgcolor: combineRgb(0, 0, 0),

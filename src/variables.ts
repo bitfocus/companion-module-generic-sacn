@@ -22,7 +22,8 @@ export function InitVariableDefinitions(self: SACNInstance): void {
 
 	for (let i = 0; i < self.data.length; i++) {
 		if (self.variable_status?.[i]) {
-			variables.push({ name: `Value of channel ${i + 1}`, variableId: `value_chan_${i + 1}` })
+			//variables.push({ name: `Value of channel ${i + 1}`, variableId: `value_chan_${i + 1}` })
+			variables.push({ name: `Value of channel ${i + 1}`, variableId: `channel${i + 1}_value` })
 		}
 	}
 	self.setVariableDefinitions(variables)
@@ -33,7 +34,8 @@ export function UpdateVariableDefinitions(self: SACNInstance): void {
 
 	for (let i = 0; i < self.data.length; i++) {
 		if (self.variable_status?.[i]) {
-			values[`value_chan_${i + 1}`] = self.data[i]
+			//values[`value_chan_${i + 1}`] = self.data[i]
+			values[`channel${i + 1}_value`] = self.data[i]
 		}
 	}
 	self.setVariableValues(values)
