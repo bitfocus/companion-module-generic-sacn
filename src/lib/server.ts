@@ -1,38 +1,60 @@
 // Extremely basic SACN server for sending SACN packets
+const SACN_DEFAULT_PORT = 5568
 
-const SACN_DEFAULT_PORT = 5568;
+import * as dgram from 'dgram'
+import { Packet } from './packet.js'
 
-var packet = require('./packet.js').packet;
-var dgram = require('dgram');
-function server({target, port, localAddress}) {
-    var self = this;
+class SACNServer implements SACNServer {
+	socket: dgram.Socket
+	seqNum: number
+	port: number
+	address: string
+	localAddress: string
+	universe: number
 
-    if (self instanceof server === false) {
-        return new server(target, port, localAddress);
-    }
+	constructor({
+		address,
+		port = SACN_DEFAULT_PORT,
+		localAddress = '',
+		universe = 1,
+	}: {
+		address: string
+		port?: number
+		localAddress?: string
+		universe?: number
+	}) {
+		this.seqNum = 0
+		this.port = port
+		this.address = address
+		this.localAddress = localAddress
+		this.universe = universe
 
-    self.port = port || SACN_DEFAULT_PORT;
-    self.target = target;
-    self.localAddress = localAddress || null;
+		this.socket = dgram.createSocket('udp4')
 
-    self.socket = dgram.createSocket('udp4');
+		if (this.localAddress) {
+			this.socket.bind({ address: this.localAddress }, () => {
+				// Optional: Set multicast interface for outgoing packets
+				this.socket.setMulticastInterface(this.localAddress)
+			})
+			console.log(
+				`info`,
+				`Initializing Transmitting to ${this.address}:${this.port} on ${this.localAddress} for Universe ${this.universe}`,
+			)
+		}
+	}
 
-    if (self.localAddress) {
-        self.socket.bind({ address: self.localAddress }, () => {
-            // Optional: Set multicast interface for outgoing packets
-            self.socket.setMulticastInterface(self.localAddress);
-        });
-    }
+	createPacket(slots: number): Packet {
+		return new Packet(slots)
+	}
+
+	send(packet: Packet): void {
+		this.socket.send(packet.getBuf(), this.port, this.address, () => {
+			packet.incSeqNum()
+		})
+	}
+	close(): void {
+		this.socket.close()
+	}
 }
 
-server.prototype.createPacket = function(slots) {
-    return new packet(slots);
-}
-
-server.prototype.send = function(packet) {
-    var self = this;
-
-    self.socket.send(packet.getBuf(), self.port, self.target, packet.incSeqNum());
-};
-
-exports.server = server;
+export { SACNServer }

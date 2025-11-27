@@ -1,6 +1,17 @@
-const UpgradeScripts = [
-	function (_context, props) {
-		const result = {
+import type {
+	CompanionStaticUpgradeScript,
+	CompanionUpgradeContext,
+	CompanionStaticUpgradeProps,
+	CompanionStaticUpgradeResult,
+} from '@companion-module/base'
+import type { ModuleConfig } from './config.js'
+
+export const UpgradeScripts: CompanionStaticUpgradeScript<ModuleConfig>[] = [
+	function (
+		_context: CompanionUpgradeContext<ModuleConfig>,
+		props: CompanionStaticUpgradeProps<ModuleConfig>,
+	): CompanionStaticUpgradeResult<ModuleConfig> {
+		const result: any = {
 			updatedConfig: null,
 			updatedActions: [],
 			updatedFeedbacks: [],
@@ -22,7 +33,3 @@ const UpgradeScripts = [
 		return result
 	},
 ]
-
-module.exports = {
-	UpgradeScripts,
-}

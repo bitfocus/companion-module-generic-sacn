@@ -1,56 +1,40 @@
+import type { SACNInstance } from './main.js'
+import { parseRange } from './lib/utils.js'
 
-function parse_variable_config(self) {
-    self.variable_status = []
-    for (let i = 0; i < self.data.length; i++) {
-        self.variable_status[i] = false
-    }
-
-    if (!self.config.variables) {
-        // no variables to enable
-        return
-    }
-
-    let parts = self.config.variables.split(',')
-    parts.forEach(part => {
-        console.log(part)
-        if (Number(part)) { // single number
-            self.variable_status[Number(part) - 1] = true
-        } else {
-            // some range <start>-<stop>
-            let p = part.split('-')
-            for (let i = Number(p[0]) - 1; i < Number(p[1]); i++) {
-                self.variable_status[i] = true
-            }
-        }
-    })
+export const VariableMapping = {
+	name: 'Name of the Source',
+	uuid: 'UUID of the Source',
+	fps: 'Speed of the Source',
+	priority: 'Priority of the Source',
+	lastpackage: 'Last sACN packet',
+	packet_rate: 'Packets per Second',
+	universe: 'Universe',
+	source_list: 'JSON Object of active sources',
 }
 
-function init_variables(self) {
-    parse_variable_config(self)
-    let variables = []
-    for (let i = 0; i < self.data.length; i++) {
-        if (self.variable_status[i]) {
-            variables.push({
-                name: `Value of channel ${i + 1}`,
-                variableId: `channel${i + 1}_value`,
-            })
-        }
-    }
-    self.setVariableDefinitions(variables)
-    update_variables(self)
+export function InitVariableDefinitions(self: SACNInstance): void {
+	self.variable_status = parseRange(self.config.variables, self.data.length)
+
+	const variables = Object.entries(VariableMapping).map(([variableId, name]) => ({
+		name,
+		variableId,
+	}))
+
+	for (let i = 0; i < self.data.length; i++) {
+		if (self.variable_status?.[i]) {
+			variables.push({ name: `Value of channel ${i + 1}`, variableId: `value_chan_${i + 1}` })
+		}
+	}
+	self.setVariableDefinitions(variables)
 }
 
-function update_variables(self) {
-    let values = []
-    for (let i = 0; i < self.data.length; i++) {
-        if (self.variable_status[i]) {
-            values[`channel${i + 1}_value`] = self.data[i]
-        }
-    }
-    self.setVariableValues(values)
-}
+export function UpdateVariableDefinitions(self: SACNInstance): void {
+	const values: { [key: string]: any } = {}
 
-module.exports = {
-    init_variables,
-    update_variables,
+	for (let i = 0; i < self.data.length; i++) {
+		if (self.variable_status?.[i]) {
+			values[`value_chan_${i + 1}`] = self.data[i]
+		}
+	}
+	self.setVariableValues(values)
 }
