@@ -1,6 +1,6 @@
 {
 	"name": "generic-sacn",
-	"version": "3.0.0",
+	"version": "3.0.0-beta",
 	"main": "dist/main.js",
 	"type": "module",
 	"scripts": {
