@@ -188,68 +188,90 @@ export class SACNInstance extends InstanceBase<ModuleConfig> {
 
 		if (this.config.mode === 'send') {
 			if (this.config.host) {
-				interface SACNServerOptions {
-					address: string
-					localAddress: string
-					universe: number
-				}
-
-				this.server = new SACNServer({
-					address: this.config.host,
-					localAddress: this.config.localAddress,
-					universe: this.config.universe || 0x01,
-				} as SACNServerOptions)
-
-				this.packet = this.server.createPacket(512)
-				this.data = this.packet.getSlots()
-
-				this.packet.setSourceName(this.config.name || 'Companion App')
-				this.packet.setUUID(this.config.uuid || uuidv4())
-				this.packet.setUniverse(this.config.universe || 0x01)
-				this.packet.setPriority(this.config.priority)
-				this.packet.setOption('TERMINATED', true)
-
-				for (let i = 0; i < this.data.length; i++) {
-					this.data[i] = 0x00
-				}
-
-				this.transitions = new Transitions(
-					this.data,
-					this.config.timer_fast || TIMER_FAST_DEFAULT,
-					this.keepAlive.bind(this),
-				)
-
-				this.connectionLostTimer = setInterval(() => {
-					if (!this.transitions || !this.transitions.isRunning()) {
-						this.keepAlive()
+				try {
+					interface SACNServerOptions {
+						address: string
+						localAddress: string
+						universe: number
+						onError?: (error: Error) => void
 					}
-				}, this.config.timer_slow || TIMER_SLOW_DEFAULT)
 
-				initialized = true
-				this.log(
-					'info',
-					`Transmitting to ${this.config.host}:${SACN_DEFAULT_PORT} on ${this.config.localAddress} for Universe ${this.config.universe}`,
-				)
+					this.server = new SACNServer({
+						address: this.config.host,
+						localAddress: this.config.localAddress,
+						universe: this.config.universe || 0x01,
+						onError: (error: Error) => {
+							this.log('error', `sACN Server error: ${error.message}`)
+							this.updateStatus(InstanceStatus.BadConfig, `Server error: ${error.message}`)
+						},
+					} as SACNServerOptions)
+
+					this.packet = this.server.createPacket(512)
+					this.data = this.packet.getSlots()
+
+					this.packet.setSourceName(this.config.name || 'Companion App')
+					this.packet.setUUID(this.config.uuid || uuidv4())
+					this.packet.setUniverse(this.config.universe || 0x01)
+					this.packet.setPriority(this.config.priority)
+					this.packet.setOption('TERMINATED', true)
+
+					for (let i = 0; i < this.data.length; i++) {
+						this.data[i] = 0x00
+					}
+
+					this.transitions = new Transitions(
+						this.data,
+						this.config.timer_fast || TIMER_FAST_DEFAULT,
+						this.keepAlive.bind(this),
+					)
+
+					this.connectionLostTimer = setInterval(() => {
+						if (!this.transitions || !this.transitions.isRunning()) {
+							this.keepAlive()
+						}
+					}, this.config.timer_slow || TIMER_SLOW_DEFAULT)
+
+					initialized = true
+					this.log(
+						'info',
+						`Transmitting to ${this.config.host}:${SACN_DEFAULT_PORT} on ${this.config.localAddress} for Universe ${this.config.universe}`,
+					)
+				} catch (error) {
+					const err = error as Error
+					this.log('error', `Failed to initialize sACN Server: ${err.message}`)
+					this.updateStatus(InstanceStatus.BadConfig, `Server setup failed: ${err.message}`)
+					return
+				}
 			} else {
 				this.updateStatus(InstanceStatus.BadConfig, 'Missing host for sender')
 			}
 		}
 
 		if (this.config.mode === 'receive') {
-			this.receiver = new SACNReceiver({
-				universe: this.config.universe,
-				localAddress: this.config.localAddress,
-			})
+			try {
+				this.receiver = new SACNReceiver({
+					universe: this.config.universe,
+					localAddress: this.config.localAddress,
+					onError: (error: Error) => {
+						this.updateStatus(InstanceStatus.BadConfig, `Receiver error: ${error.message}`)
+					},
+				})
 
-			this.receiver.addListener((data) => {
-				this.handleIncomingData(data)
-			})
+				this.receiver.addListener((data) => {
+					this.handleIncomingData(data)
+				})
 
-			initialized = true
-			this.log(
-				'info',
-				`Listening on ${this.config.host}:${SACN_DEFAULT_PORT} on ${this.config.localAddress} for Universe ${this.config.universe}`,
-			)
+				initialized = true
+				this.log(
+					'info',
+					`Listening on ${this.config.host}:${SACN_DEFAULT_PORT} on ${this.config.localAddress} for Universe ${this.config.universe}`,
+				)
+			} catch (error) {
+				const err = error as Error
+				this.log('error', `Failed to initialize sACN Receiver: ${err.message}`)
+				this.updateStatus(InstanceStatus.BadConfig, `Receiver setup failed: ${err.message}`)
+				return
+			}
 		}
 
 		if (this.config.mode === 'none') {

@@ -28,12 +28,14 @@ class SACNReceiver {
 	multicastAddress: string
 	socket: dgram.Socket
 	private sourceManager: SourceManager
+	private errorCallback?: (error: Error) => void
 
-	constructor(options: { universe?: number; port?: number; localAddress?: string }) {
+	constructor(options: { universe?: number; port?: number; localAddress?: string; onError?: (error: Error) => void }) {
 		this.port = options.port ?? SACN_DEFAULT_PORT
 		this.universe = options.universe ?? 1
 		this.localAddress = options.localAddress ?? undefined
 		this.sourceManager = new SourceManager(512, 2500) // 512 slots, 2.5s timeout
+		this.errorCallback = options.onError
 
 		this.listeners = new Set<(data: SACNPayload) => void>()
 		this.packetCount = 0
@@ -48,19 +50,32 @@ class SACNReceiver {
 
 		// Setup socket event handlers
 		this.socket.on('message', (msg) => this._handleIncomingPacket(msg))
-		this.socket.on('error', (err) => console.error('sACN Receiver error:', err))
+		this.socket.on('error', (err) => {
+			//console.error(err)
+			if (this.errorCallback) {
+				this.errorCallback(err)
+			}
+		})
 
 		// Bind socket and join multicast group
 		this.socket.bind(this.port, () => {
-			this.socket.setBroadcast(true)
-			this.socket.setMulticastTTL(1)
-			if (this.localAddress) {
-				this.socket.setMulticastInterface(this.localAddress)
+			try {
+				this.socket.setBroadcast(true)
+				this.socket.setMulticastTTL(1)
+				if (this.localAddress) {
+					this.socket.setMulticastInterface(this.localAddress)
+				}
+				this.socket.addMembership(this.multicastAddress, this.localAddress)
+				console.log(
+					`Listening on ${this.multicastAddress}:${this.port} on ${this.localAddress} for Universe ${this.universe}`,
+				)
+			} catch (err) {
+				const error = err as Error
+				console.error('sACN Receiver socket setup error:', error.message)
+				if (this.errorCallback) {
+					this.errorCallback(error)
+				}
 			}
-			this.socket.addMembership(this.multicastAddress, this.localAddress)
-			console.log(
-				`Listening on ${this.multicastAddress}:${this.port} on ${this.localAddress} for Universe ${this.universe}`,
-			)
 		})
 
 		// Create check timer for packet inactivity and source cleanup
