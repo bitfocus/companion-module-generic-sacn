@@ -107,6 +107,12 @@ class SACNReceiver {
 				return // Invalid packet
 			}
 
+			// Check if packet universe matches receiver universe
+			const packetUniverse = sacnPacket.frame.getUniverse()
+			if (packetUniverse !== this.universe) {
+				return // Packet is for a different universe
+			}
+
 			const now = Date.now()
 			const sourceName = sacnPacket.frame.getSourceName()
 			const sourceUUID = sacnPacket.getUUID()
