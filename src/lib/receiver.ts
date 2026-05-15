@@ -47,7 +47,10 @@ class SACNReceiver {
 
 		// Create UDP socket
 		this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true })
+		this.bindSocket()
+	}
 
+	private bindSocket(): void {
 		// Setup socket event handlers
 		this.socket.on('message', (msg) => this._handleIncomingPacket(msg))
 		this.socket.on('error', (err) => {

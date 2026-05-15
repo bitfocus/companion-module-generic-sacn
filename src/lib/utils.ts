@@ -16,6 +16,29 @@ export function calculateMulticastAddress(universe: number): string {
 	return address
 }
 
+import * as os from 'os'
+
+/**
+ * Returns a list of local IPs for config dropdown.
+ */
+export function getLocalIPs(): { id: string; label: string }[] {
+	const localIPs: { id: string; label: string }[] = [{ id: '0.0.0.0', label: `Default: 0.0.0.0` }]
+	const interfaces = os.networkInterfaces()
+	const interface_names = Object.keys(interfaces)
+	interface_names.forEach((nic) => {
+		const ips = interfaces[nic]
+		if (ips) {
+			ips.forEach((ip) => {
+				if (ip.family == 'IPv4') {
+					localIPs.push({ id: ip.address, label: `${nic}: ${ip.address}` })
+				}
+			})
+		}
+	})
+
+	return localIPs
+}
+
 /**
  * Creates a boolean array representing a range specification.
  * @param {string} input - Range specification string (e.g., "1,3-5,7")
