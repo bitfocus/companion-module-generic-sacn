@@ -24,7 +24,7 @@
 	},
 	"dependencies": {
 		"@companion-module/base": "~1.12.1",
-		"uuid": "^9.0.1"
+		"uuid": "^14.0.0"
 	},
 	"devDependencies": {
 		"@companion-module/tools": "^2.3.0",
