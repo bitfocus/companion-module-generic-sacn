@@ -36,30 +36,34 @@ class SACNServer implements SACNServer {
 		this.socket = dgram.createSocket('udp4')
 
 		this.socket.on('error', (err) => {
-			console.error('sACN Server socket error:', err)
+			//console.error('sACN Server socket error:', err)
 			if (this.errorCallback) {
 				this.errorCallback(err)
 			}
 		})
 
 		if (this.localAddress) {
-			this.socket.bind({ address: this.localAddress }, () => {
-				try {
-					// Set multicast interface for outgoing packets
-					this.socket.setMulticastInterface(this.localAddress)
-					console.log(
-						`info`,
-						`Initializing Transmitting to ${this.address}:${this.port} on ${this.localAddress} for Universe ${this.universe}`,
-					)
-				} catch (err) {
-					const error = err as Error
-					console.error('sACN Server socket setup error:', error.message)
-					if (this.errorCallback) {
-						this.errorCallback(error)
-					}
-				}
-			})
+			this.bindSocket()
 		}
+	}
+
+	private bindSocket(): void {
+		this.socket.bind({ address: this.localAddress }, () => {
+			try {
+				// Set multicast interface for outgoing packets
+				this.socket.setMulticastInterface(this.localAddress)
+				console.log(
+					`info`,
+					`Initializing Transmitting to ${this.address}:${this.port} on ${this.localAddress} for Universe ${this.universe}`,
+				)
+			} catch (err) {
+				const error = err as Error
+				console.error('sACN Server socket setup error:', error.message)
+				if (this.errorCallback) {
+					this.errorCallback(error)
+				}
+			}
+		})
 	}
 
 	createPacket(slots: number): Packet {

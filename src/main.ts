@@ -6,7 +6,6 @@ import { UpdateActions } from './actions.js'
 import { UpdateFeedbacks } from './feedbacks.js'
 import { UpdatePresets } from './presets.js'
 
-import * as os from 'os'
 import { v4 as uuidv4 } from 'uuid'
 import { SACNServer } from './lib/server.js'
 import { SACNReceiver } from './lib/receiver.js'
@@ -14,7 +13,7 @@ import { Packet } from './lib/packet.js'
 
 import { Transitions } from './lib/transitions.js'
 import { TIMER_SLOW_DEFAULT, TIMER_FAST_DEFAULT, SACN_DEFAULT_PORT } from './constants.js'
-import { calculateMulticastAddress } from './lib/utils.js'
+import { calculateMulticastAddress, getLocalIPs } from './lib/utils.js'
 
 export class SACNInstance extends InstanceBase<ModuleConfig> {
 	config!: ModuleConfig // Setup in init()
@@ -27,31 +26,18 @@ export class SACNInstance extends InstanceBase<ModuleConfig> {
 	public packetlist = new Array(512).fill(0)
 	public data = new Array(512).fill(0)
 	private connectionLostTimer?: NodeJS.Timeout
+	private reconnectTimer?: NodeJS.Timeout
 	public currentStatus: InstanceStatus = InstanceStatus.Ok
 
 	constructor(internal: unknown) {
 		super(internal)
 
-		// Get local IPs for Config
-		this.localIPs = [{ id: '0.0.0.0', label: `Default: 0.0.0.0` }]
-		const interfaces = os.networkInterfaces()
-		const interface_names = Object.keys(interfaces)
-		interface_names.forEach((nic) => {
-			const ips = interfaces[nic]
-			if (ips) {
-				ips.forEach((ip) => {
-					if (ip.family == 'IPv4') {
-						this.localIPs.push({ id: ip.address, label: `${nic}: ${ip.address}` })
-					}
-				})
-			}
-		})
+		// Get local IPs for Config-Dropdown
+		this.localIPs = getLocalIPs()
 	}
 
 	async init(config: ModuleConfig): Promise<void> {
 		this.config = config
-
-		this.updateStatus(InstanceStatus.Connecting, 'Initializing sACN connection...')
 
 		await this.init_sacn()
 
@@ -110,6 +96,7 @@ export class SACNInstance extends InstanceBase<ModuleConfig> {
 	}
 
 	async terminate(): Promise<void> {
+		this.clearReconnectTimer()
 		if (this.server && this.packet) {
 			this.packet.setOption('TERMINATED', true)
 			this.server.send(this.packet)
@@ -134,7 +121,47 @@ export class SACNInstance extends InstanceBase<ModuleConfig> {
 			delete this.connectionLostTimer
 		}
 
-		this.updateStatus(InstanceStatus.Disconnected, 'Terminated sACN connection...')
+		this.log('info', `Terminated sACN connection...`)
+		//this.updateStatus(InstanceStatus.Disconnected, 'Terminated sACN connection...')
+	}
+
+	private isRecoverableSocketError(error: unknown): boolean {
+		let code = ''
+		if (typeof error === 'object' && error !== null && 'code' in error) {
+			code = String((error as { code?: unknown }).code)
+		}
+		return code === 'EADDRNOTAVAIL' || code === 'ENODEV'
+	}
+
+	private handleSocketError(error: unknown, mode_text = 'sACN'): void {
+		const err = error as Error
+		this.log('error', `sACN ${mode_text} error: ${err.message}`)
+		//this.updateStatus(InstanceStatus.BadConfig, `${mode_text} error: ${err.message}`)
+		if (this.isRecoverableSocketError(err)) {
+			this.scheduleReconnect(err.message)
+			return
+		}
+		void this.terminate()
+	}
+
+	private clearReconnectTimer(): void {
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer)
+			delete this.reconnectTimer
+		}
+	}
+
+	private scheduleReconnect(reason: string): void {
+		this.log('warn', `${reason} - retrying in 5 seconds`)
+		this.updateStatus(InstanceStatus.ConnectionFailure, reason)
+
+		if (this.reconnectTimer) return
+
+		void this.terminate()
+		this.reconnectTimer = setTimeout(() => {
+			this.reconnectTimer = undefined
+			void this.init_sacn()
+		}, 5000)
 	}
 
 	handleIncomingData(data: {
@@ -171,89 +198,75 @@ export class SACNInstance extends InstanceBase<ModuleConfig> {
 	}
 
 	private async init_sacn(): Promise<void> {
-		this.updateStatus(InstanceStatus.Connecting, 'Initializing sACN connection...')
-		this.packetlist = new Array(512).fill(0)
-		this.data = new Array(512).fill(0)
-
-		if (!this.config.customIP) {
-			this.config.host = calculateMulticastAddress(this.config.universe)
-		}
-
-		if (this.config.enableSender && !this.config.host) {
-			this.updateStatus(InstanceStatus.BadConfig, 'Missing host for sender')
-			return
-		}
-
 		let initialized = false
+		let mode_text = ''
 
-		if (this.config.mode === 'send') {
-			if (this.config.host) {
-				try {
-					interface SACNServerOptions {
-						address: string
-						localAddress: string
-						universe: number
-						onError?: (error: Error) => void
-					}
+		try {
+			this.clearReconnectTimer()
 
-					this.server = new SACNServer({
-						address: this.config.host,
-						localAddress: this.config.localAddress,
-						universe: this.config.universe || 0x01,
-						onError: (error: Error) => {
-							this.log('error', `sACN Server error: ${error.message}`)
-							this.updateStatus(InstanceStatus.BadConfig, `Server error: ${error.message}`)
-						},
-					} as SACNServerOptions)
+			this.updateStatus(InstanceStatus.Connecting, 'Initializing sACN connection...')
+			this.packetlist = new Array(512).fill(0)
+			this.data = new Array(512).fill(0)
 
-					this.packet = this.server.createPacket(512)
-					this.data = this.packet.getSlots()
-
-					this.packet.setSourceName(this.config.name || 'Companion App')
-					this.packet.setUUID(this.config.uuid || uuidv4())
-					this.packet.setUniverse(this.config.universe || 0x01)
-					this.packet.setPriority(this.config.priority)
-					this.packet.setOption('TERMINATED', true)
-
-					for (let i = 0; i < this.data.length; i++) {
-						this.data[i] = 0x00
-					}
-
-					this.transitions = new Transitions(
-						this.data,
-						this.config.timer_fast || TIMER_FAST_DEFAULT,
-						this.keepAlive.bind(this),
-					)
-
-					this.connectionLostTimer = setInterval(() => {
-						if (!this.transitions || !this.transitions.isRunning()) {
-							this.keepAlive()
-						}
-					}, this.config.timer_slow || TIMER_SLOW_DEFAULT)
-
-					initialized = true
-					this.log(
-						'info',
-						`Transmitting to ${this.config.host}:${SACN_DEFAULT_PORT} on ${this.config.localAddress} for Universe ${this.config.universe}`,
-					)
-				} catch (error) {
-					const err = error as Error
-					this.log('error', `Failed to initialize sACN Server: ${err.message}`)
-					this.updateStatus(InstanceStatus.BadConfig, `Server setup failed: ${err.message}`)
-					return
-				}
-			} else {
-				this.updateStatus(InstanceStatus.BadConfig, 'Missing host for sender')
+			if (!this.config.customIP) {
+				this.config.host = calculateMulticastAddress(this.config.universe)
 			}
-		}
 
-		if (this.config.mode === 'receive') {
-			try {
+			if (this.config.enableSender && !this.config.host) {
+				this.updateStatus(InstanceStatus.BadConfig, 'Missing host for sender')
+				return
+			}
+
+			if (this.config.mode === 'send') {
+				mode_text = 'Server'
+				this.server = new SACNServer({
+					address: this.config.host,
+					localAddress: this.config.localAddress,
+					universe: this.config.universe || 0x01,
+					onError: (error: Error) => {
+						this.handleSocketError(error, mode_text)
+					},
+				})
+
+				this.packet = this.server.createPacket(512)
+				this.data = this.packet.getSlots()
+
+				this.packet.setSourceName(this.config.name || 'Companion App')
+				this.packet.setUUID(this.config.uuid || uuidv4())
+				this.packet.setUniverse(this.config.universe || 0x01)
+				this.packet.setPriority(this.config.priority)
+				this.packet.setOption('TERMINATED', true)
+
+				for (let i = 0; i < this.data.length; i++) {
+					this.data[i] = 0x00
+				}
+
+				this.transitions = new Transitions(
+					this.data,
+					this.config.timer_fast || TIMER_FAST_DEFAULT,
+					this.keepAlive.bind(this),
+				)
+
+				this.connectionLostTimer = setInterval(() => {
+					if (!this.transitions || !this.transitions.isRunning()) {
+						this.keepAlive()
+					}
+				}, this.config.timer_slow || TIMER_SLOW_DEFAULT)
+
+				initialized = true
+				this.log(
+					'info',
+					`Transmitting to ${this.config.host}:${SACN_DEFAULT_PORT} on ${this.config.localAddress} for Universe ${this.config.universe}`,
+				)
+			}
+
+			if (this.config.mode === 'receive') {
+				mode_text = 'Receiver'
 				this.receiver = new SACNReceiver({
 					universe: this.config.universe,
 					localAddress: this.config.localAddress,
 					onError: (error: Error) => {
-						this.updateStatus(InstanceStatus.BadConfig, `Receiver error: ${error.message}`)
+						this.handleSocketError(error, mode_text)
 					},
 				})
 
@@ -266,24 +279,29 @@ export class SACNInstance extends InstanceBase<ModuleConfig> {
 					'info',
 					`Listening on ${this.config.host}:${SACN_DEFAULT_PORT} on ${this.config.localAddress} for Universe ${this.config.universe}`,
 				)
-			} catch (error) {
-				const err = error as Error
-				this.log('error', `Failed to initialize sACN Receiver: ${err.message}`)
-				this.updateStatus(InstanceStatus.BadConfig, `Receiver setup failed: ${err.message}`)
+			}
+
+			if (this.config.mode === 'none') {
+				this.updateStatus(InstanceStatus.BadConfig, 'Missing mode')
+			}
+
+			if (initialized) {
+				this.initVariableDefinitions()
+				this.updateVariableDefinitions()
+				this.updatePresets()
+				this.updateFeedbacks()
+
+				this.updateStatus(InstanceStatus.Ok, `${mode_text} running`)
+			}
+		} catch (error) {
+			const err = error as Error
+			//this.log('error', `Failed to initialize sACN ${mode_text}: ${err.message}`)
+			if (this.isRecoverableSocketError(err)) {
+				this.scheduleReconnect(err.message)
 				return
 			}
-		}
-
-		if (this.config.mode === 'none') {
-			this.updateStatus(InstanceStatus.BadConfig, 'Missing mode')
-		}
-
-		if (initialized) {
-			this.initVariableDefinitions()
-			this.updateVariableDefinitions()
-			this.updatePresets()
-			this.updateFeedbacks()
-			this.updateStatus(InstanceStatus.Ok)
+			this.updateStatus(InstanceStatus.BadConfig, `${mode_text} error: ${err.message}`)
+			return
 		}
 	}
 }
