@@ -27,7 +27,7 @@
 		"uuid": "^14.0.0"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^2.3.0",
+		"@companion-module/tools": "^2.8.0",
 		"@types/node": "^22.14.1",
 		"@types/uuid": "^10.0.0",
 		"eslint": "^9.24.0",
